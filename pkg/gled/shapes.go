@@ -1,4 +1,4 @@
-package conwaysgol
+package gled
 
 type Shape struct {
 	Vertices []float32
@@ -8,7 +8,7 @@ type Shape struct {
 var (
 	Square = Shape{
 		Vertices: []float32{
-			//0.5,  0.5, 0.0,  // top right
+			0.5,  0.5, 0.0,  // top right
 			0.5, -0.5, 0.0,  // bottom right
 			-0.5, -0.5, 0.0, // bottom left
 			-0.5,  0.5, 0.0, // top left
