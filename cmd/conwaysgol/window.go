@@ -1,10 +1,12 @@
 package conwaysgol
 
 import (
-	"github.com/go-gl/gl/v4.6-core/gl"
-	"github.com/go-gl/glfw/v3.3/glfw"
 	"log"
 	"runtime"
+	"strings"
+
+	"github.com/go-gl/gl/v4.6-core/gl"
+	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
 var (
@@ -31,7 +33,7 @@ type Window struct {
 	width    int
 	height   int
 	glWindow *glfw.Window
-	program  uint32
+	shaderProgram  uint32
 }
 
 func init() {
@@ -65,7 +67,7 @@ func InitWindow(title string, width int, height int) Window {
 		width:    width,
 		height:   height,
 		glWindow: window,
-		program:  initOpenGL(),
+		shaderProgram:  initOpenGL(),
 	}
 }
 
@@ -81,13 +83,13 @@ func (window Window) Draw(shape Shape) {
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, 4*len(shape.Vertices), gl.Ptr(shape.Vertices), gl.STATIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, len(shape.Vertices)*4, gl.Ptr(shape.Vertices), gl.STATIC_DRAW)
 
 	// element buffer object
 	var ebo uint32
 	gl.GenBuffers(1, &ebo)
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, 4*len(shape.Indices), gl.Ptr(shape.Indices), gl.STATIC_DRAW)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(shape.Indices)*4, gl.Ptr(shape.Indices), gl.STATIC_DRAW)
 
 	gl.VertexAttribPointer(0, 6, gl.FLOAT, false, 4*3, gl.PtrOffset(0))
 	gl.EnableVertexAttribArray(0)
@@ -96,7 +98,7 @@ func (window Window) Draw(shape Shape) {
 		glfw.PollEvents()
 
 		gl.BindVertexArray(vao)
-		gl.UseProgram(window.program)
+		gl.UseProgram(window.shaderProgram)
 
 		gl.DrawElements(gl.TRIANGLES, 2, gl.UNSIGNED_INT, gl.Ptr(shape.Indices))
 		//gl.DrawArrays(gl.TRIANGLES, 0, int32(len(shape.Vertices) / 3))
@@ -121,24 +123,53 @@ func initOpenGL() uint32 {
 	log.Println("Initialised OpenGL version", version)
 
 	// compile shaders
-	vertexShaderSource, freeVertexShaderFn := gl.Strs(vertexShaderSource, "\x00")
+	vertexShaderSource, freeVertexShaderFn := gl.Strs(vertexShaderSource)
 	defer freeVertexShaderFn()
 
 	vertexShader := gl.CreateShader(gl.VERTEX_SHADER)
 	gl.ShaderSource(vertexShader, 1, vertexShaderSource, nil)
 	gl.CompileShader(vertexShader)
+	getShaderStatus(vertexShader)
 
-	fragmentShaderSource, freeFragmentShaderFn := gl.Strs(fragmentShaderSource, "\x00")
+	fragmentShaderSource, freeFragmentShaderFn := gl.Strs(fragmentShaderSource)
 	defer freeFragmentShaderFn()
 
 	fragmentShader := gl.CreateShader(gl.FRAGMENT_SHADER)
 	gl.ShaderSource(fragmentShader, 1, fragmentShaderSource, nil)
 	gl.CompileShader(fragmentShader)
+	getShaderStatus(fragmentShader)
 
-	program := gl.CreateProgram()
-	gl.AttachShader(program, vertexShader)
-	gl.AttachShader(program, fragmentShader)
-	gl.LinkProgram(program)
+	shaderProgram := gl.CreateProgram()
+	gl.AttachShader(shaderProgram, vertexShader)
+	gl.AttachShader(shaderProgram, fragmentShader)
+	gl.LinkProgram(shaderProgram)
 
-	return program
+	return shaderProgram
+}
+
+func getShaderStatus(shader uint32) {
+	var status int32
+	gl.GetShaderiv(shader, gl.COMPILE_STATUS, &status)
+
+	var shaderTypeId int32
+	gl.GetShaderiv(shader, gl.SHADER_TYPE, &shaderTypeId)
+
+	shaderType := "UNKNOWN"
+	if shaderTypeId == gl.FRAGMENT_SHADER {
+		shaderType = "FRAGMENT_SHADER"
+	} else if shaderTypeId == gl.VERTEX_SHADER {
+		shaderType = "VERTEX_SHADER"
+	}
+
+	if status == gl.FALSE {
+		var logLength int32
+		gl.GetShaderiv(shader, gl.INFO_LOG_LENGTH, &logLength)
+
+		shaderLog := strings.Repeat("\x00", int(logLength+1))
+		gl.GetShaderInfoLog(shader, logLength, nil, gl.Str(shaderLog))
+
+		log.Panicln("Failed to compile shader", shaderType)
+	} else {
+		log.Println("Compiled shader", shaderType, "successfully")
+	}
 }
