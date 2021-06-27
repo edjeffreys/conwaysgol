@@ -143,6 +143,7 @@ func initOpenGL() uint32 {
 	gl.AttachShader(shaderProgram, vertexShader)
 	gl.AttachShader(shaderProgram, fragmentShader)
 	gl.LinkProgram(shaderProgram)
+	getProgramLinkStatus(shaderProgram)
 
 	return shaderProgram
 }
@@ -168,8 +169,26 @@ func getShaderStatus(shader uint32) {
 		shaderLog := strings.Repeat("\x00", int(logLength+1))
 		gl.GetShaderInfoLog(shader, logLength, nil, gl.Str(shaderLog))
 
-		log.Panicln("Failed to compile shader", shaderType)
+		log.Panicln("Failed to compile shader:\n", shaderType)
 	} else {
 		log.Println("Compiled shader", shaderType, "successfully")
+	}
+}
+
+func getProgramLinkStatus(program uint32) {
+	var status int32
+
+	gl.GetProgramiv(program, gl.LINK_STATUS, &status)
+
+	if status == gl.FALSE {
+		var logLength int32
+		gl.GetProgramiv(program, gl.INFO_LOG_LENGTH, &logLength)
+
+		programLog := strings.Repeat("\x00", int(logLength+1))
+		gl.GetProgramInfoLog(program, logLength, nil, gl.Str(programLog))
+
+		log.Panicln("Failed to link program:\n", programLog)
+	} else {
+		log.Println("Linked program successfully")
 	}
 }
