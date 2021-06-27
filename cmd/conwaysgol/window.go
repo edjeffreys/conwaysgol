@@ -49,7 +49,7 @@ func InitWindow(title string, width int, height int) Window {
 	glfw.WindowHint(glfw.Resizable, glfw.False)
 
 	glfw.WindowHint(glfw.ContextVersionMajor, 4)
-	glfw.WindowHint(glfw.ContextVersionMinor, 1)
+	glfw.WindowHint(glfw.ContextVersionMinor, 6)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
 
@@ -72,36 +72,39 @@ func InitWindow(title string, width int, height int) Window {
 }
 
 func (window Window) Draw(shape Shape) {
-	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
+	// vertex buffer object
+	var vbo uint32
+	gl.GenBuffers(1, &vbo)
+	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
 
 	// vertex array object
 	var vao uint32
 	gl.GenVertexArrays(1, &vao)
 	gl.BindVertexArray(vao)
 
-	// vertex buffer object
-	var vbo uint32
-	gl.GenBuffers(1, &vbo)
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, len(shape.Vertices)*4, gl.Ptr(shape.Vertices), gl.STATIC_DRAW)
-
 	// element buffer object
 	var ebo uint32
 	gl.GenBuffers(1, &ebo)
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
+
+	// populate buffers
+	gl.BufferData(gl.ARRAY_BUFFER, len(shape.Vertices)*4, gl.Ptr(shape.Vertices), gl.STATIC_DRAW)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(shape.Indices)*4, gl.Ptr(shape.Indices), gl.STATIC_DRAW)
 
-	gl.VertexAttribPointer(0, 6, gl.FLOAT, false, 4*3, gl.PtrOffset(0))
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 3*4, nil)
 	gl.EnableVertexAttribArray(0)
 
 	for !window.glWindow.ShouldClose() {
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		glfw.PollEvents()
 
-		gl.BindVertexArray(vao)
 		gl.UseProgram(window.shaderProgram)
 
-		gl.DrawElements(gl.TRIANGLES, 2, gl.UNSIGNED_INT, gl.Ptr(shape.Indices))
-		//gl.DrawArrays(gl.TRIANGLES, 0, int32(len(shape.Vertices) / 3))
+		gl.BindVertexArray(vao)
+
+		//gl.DrawElements(gl.TRIANGLES, 2, gl.UNSIGNED_INT, gl.Ptr(shape.Indices))
+		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(shape.Vertices) / 3))
 
 		gl.BindVertexArray(0)
 		gl.UseProgram(0)
@@ -123,7 +126,7 @@ func initOpenGL() uint32 {
 	log.Println("Initialised OpenGL version", version)
 
 	// compile shaders
-	vertexShaderSource, freeVertexShaderFn := gl.Strs(vertexShaderSource)
+	vertexShaderSource, freeVertexShaderFn := gl.Strs(vertexShaderSource + "\x00")
 	defer freeVertexShaderFn()
 
 	vertexShader := gl.CreateShader(gl.VERTEX_SHADER)
@@ -131,7 +134,7 @@ func initOpenGL() uint32 {
 	gl.CompileShader(vertexShader)
 	getShaderStatus(vertexShader)
 
-	fragmentShaderSource, freeFragmentShaderFn := gl.Strs(fragmentShaderSource)
+	fragmentShaderSource, freeFragmentShaderFn := gl.Strs(fragmentShaderSource + "\x00")
 	defer freeFragmentShaderFn()
 
 	fragmentShader := gl.CreateShader(gl.FRAGMENT_SHADER)
@@ -144,6 +147,10 @@ func initOpenGL() uint32 {
 	gl.AttachShader(shaderProgram, fragmentShader)
 	gl.LinkProgram(shaderProgram)
 	getProgramLinkStatus(shaderProgram)
+
+	// free resources
+	gl.DeleteShader(vertexShader)
+	gl.DeleteShader(fragmentShader)
 
 	return shaderProgram
 }
