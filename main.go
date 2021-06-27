@@ -28,7 +28,8 @@ func main() {
 	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 5*4, nil)
 	gl.EnableVertexAttribArray(0)
 
-	gl.VertexAttribPointer(2, 2, gl.FLOAT, false, 5*4, gl.PtrOffset(2*4))
+	gl.VertexAttribPointer(1, 2, gl.FLOAT, false, 5*4, gl.PtrOffset(2*4))
+	gl.EnableVertexAttribArray(1)
 
 	for !window.ShouldClose() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
