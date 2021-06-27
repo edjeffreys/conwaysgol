@@ -71,6 +71,19 @@ func InitWindow(title string, width int, height int) Window {
 	}
 }
 
+// CompileShader compiles a shader from a GLSL string with a given shader type e.g. `gl.FRAGMENT_SHADER` and returns the generated gl shader id.
+func CompileShader(shaderSource string, shaderType uint32) uint32 {
+	cShaderSource, freeShaderFn := gl.Strs(shaderSource + "\x00")
+	defer freeShaderFn()
+
+	shaderId := gl.CreateShader(shaderType)
+	gl.ShaderSource(shaderId, 1, cShaderSource, nil)
+	gl.CompileShader(shaderId)
+	getShaderStatus(shaderId)
+
+	return shaderId
+}
+
 func (window Window) Draw(shape Shape) {
 
 	// vertex buffer object
@@ -125,22 +138,8 @@ func initOpenGL() uint32 {
 	version := gl.GoStr(gl.GetString(gl.VERSION))
 	log.Println("Initialised OpenGL version", version)
 
-	// compile shaders
-	vertexShaderSource, freeVertexShaderFn := gl.Strs(vertexShaderSource + "\x00")
-	defer freeVertexShaderFn()
-
-	vertexShader := gl.CreateShader(gl.VERTEX_SHADER)
-	gl.ShaderSource(vertexShader, 1, vertexShaderSource, nil)
-	gl.CompileShader(vertexShader)
-	getShaderStatus(vertexShader)
-
-	fragmentShaderSource, freeFragmentShaderFn := gl.Strs(fragmentShaderSource + "\x00")
-	defer freeFragmentShaderFn()
-
-	fragmentShader := gl.CreateShader(gl.FRAGMENT_SHADER)
-	gl.ShaderSource(fragmentShader, 1, fragmentShaderSource, nil)
-	gl.CompileShader(fragmentShader)
-	getShaderStatus(fragmentShader)
+	vertexShader := CompileShader(vertexShaderSource, gl.VERTEX_SHADER)
+	fragmentShader := CompileShader(fragmentShaderSource, gl.FRAGMENT_SHADER)
 
 	shaderProgram := gl.CreateProgram()
 	gl.AttachShader(shaderProgram, vertexShader)
